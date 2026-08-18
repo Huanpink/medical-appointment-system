@@ -202,3 +202,5 @@ Nếu Docker Desktop báo `Virtualization support not detected`, bỏ qua Docker
 - Do not commit `.env` or production secrets.
 
 <!-- Updated UI/UX notes by vsnmyhuong-cute -->
+
+<!-- [18/08 09:15] Huanpink: Setup test environment -->
