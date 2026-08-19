@@ -206,3 +206,5 @@ Nếu Docker Desktop báo `Virtualization support not detected`, bỏ qua Docker
 <!-- [18/08 09:15] Huanpink: Setup test environment -->
 
 <!-- [18/08 14:30] Dat: Init appointment controller -->
+
+<!-- [19/08 10:20] Nghia: Config DB connection pool -->
