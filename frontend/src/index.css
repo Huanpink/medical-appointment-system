@@ -15,3 +15,6 @@ button,input,select,textarea{font:inherit}
 /* Theme custom variables */
 :root { --primary-teal: #0d9488; --slate-dark: #0f172a; --gray-soft: #f8fafc; }
 .modal-backdrop { backdrop-filter: blur(4px); }
+
+.doctor-card { border-radius: 12px; transition: all 0.2s ease-in-out; }
+.doctor-card:hover { transform: translateY(-2px); }
