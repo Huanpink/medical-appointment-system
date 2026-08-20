@@ -24,3 +24,5 @@ echo Swagger  : http://localhost:8000/docs
 echo Health   : http://localhost:8000/api/health
 echo.
 pause
+
+REM Check local dependencies
