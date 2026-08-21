@@ -216,3 +216,5 @@ Nếu Docker Desktop báo `Virtualization support not detected`, bỏ qua Docker
 <!-- [20/08 15:50] Huanpink: Verification on registration flows -->
 
 <!-- [21/08 09:40] Dat: Validate input parameters -->
+
+<!-- [21/08 14:15] Nghia: Migration scripts update -->
