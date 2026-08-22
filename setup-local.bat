@@ -84,3 +84,5 @@ echo.
 echo Setup completed successfully.
 echo Run run-local.bat to start the application.
 exit /b 0
+
+REM Init seed data
