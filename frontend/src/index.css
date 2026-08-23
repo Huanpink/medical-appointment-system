@@ -18,3 +18,7 @@ button,input,select,textarea{font:inherit}
 
 .doctor-card { border-radius: 12px; transition: all 0.2s ease-in-out; }
 .doctor-card:hover { transform: translateY(-2px); }
+
+.badge-confirmed { background-color: #dcfce7; color: #15803d; }
+.badge-pending { background-color: #fef9c3; color: #854d0e; }
+.badge-cancelled { background-color: #fee2e2; color: #b91c1c; }
