@@ -222,3 +222,5 @@ Nếu Docker Desktop báo `Virtualization support not detected`, bỏ qua Docker
 <!-- [22/08 10:05] Dang: Date picker component -->
 
 <!-- [22/08 16:30] Huong: Responsive design fixes -->
+
+<!-- [23/08 14:20] Huanpink: Performance check -->
