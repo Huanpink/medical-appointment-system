@@ -22,3 +22,5 @@ button,input,select,textarea{font:inherit}
 .badge-confirmed { background-color: #dcfce7; color: #15803d; }
 .badge-pending { background-color: #fef9c3; color: #854d0e; }
 .badge-cancelled { background-color: #fee2e2; color: #b91c1c; }
+
+@media (max-width: 640px) { .mobile-nav-toggle { display: block; } .main-sidebar { display: none; } }
