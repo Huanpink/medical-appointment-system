@@ -226,3 +226,5 @@ Nếu Docker Desktop báo `Virtualization support not detected`, bỏ qua Docker
 <!-- [23/08 14:20] Huanpink: Performance check -->
 
 <!-- [24/08 11:30] Dat: Error handler middleware -->
+
+<!-- [24/08 15:45] Nghia: Backup script -->
