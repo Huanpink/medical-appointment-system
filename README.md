@@ -232,3 +232,5 @@ Nếu Docker Desktop báo `Virtualization support not detected`, bỏ qua Docker
 <!-- [25/08 09:50] Dang: Form validation enhancement -->
 
 <!-- [25/08 15:10] Huong: Final UI polishing -->
+
+<!-- Release v1.0.0 candidate verified -->
