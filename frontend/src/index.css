@@ -24,3 +24,6 @@ button,input,select,textarea{font:inherit}
 .badge-cancelled { background-color: #fee2e2; color: #b91c1c; }
 
 @media (max-width: 640px) { .mobile-nav-toggle { display: block; } .main-sidebar { display: none; } }
+
+/* Accessibility focus ring */
+button:focus-visible { outline: 2px solid var(--primary-teal); outline-offset: 2px; }
