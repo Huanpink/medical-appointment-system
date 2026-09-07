@@ -16,7 +16,7 @@ export function getApiErrorMessage(error, fallback = 'Có lỗi xảy ra. Vui l�
 
 const api=axios.create({baseURL:import.meta.env.VITE_API_BASE_URL||'http://localhost:8000/api',headers:{'Content-Type':'application/json'}});
 api.interceptors.request.use(config=>{const token=localStorage.getItem('med_token');if(token)config.headers.Authorization=`Bearer ${token}`;return config});
-api.interceptors.response.use(r=>r,e=>{if(e.response?.status===401){localStorage.removeItem('med_token');localStorage.removeItem('med_user');if(location.pathname!=='/login')location.assign('/login')}return Promise.reject(e)});
+api.interceptors.response.use(r=>r,e=>{if(e.response?.status===401){localStorage.removeItem('med_token');localStorage.removeItem('med_user');if(location.pathname!=='/login')location.hash='#/login'}return Promise.reject(e)});
 
 export const authApi={login:d=>api.post('/auth/login',d),register:d=>api.post('/auth/register',d),me:()=>api.get('/auth/me'),changePassword:d=>api.patch('/auth/password',d)};
 export const masterApi={specialties:()=>api.get('/specialties'),doctors:sid=>api.get('/doctors',{params:sid?{specialtyId:sid}:undefined}),doctor:id=>api.get(`/doctors/${id}`),profile:id=>api.get(`/patients/${id}`),updateProfile:(id,d)=>api.put(`/patients/${id}`,d),searchPatients:q=>api.get('/patients/search',{params:{q}})};

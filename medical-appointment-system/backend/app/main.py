@@ -14,5 +14,8 @@ def startup():
 @app.get("/")
 def root(): return {"service":"MedSchedule API","docs":"/docs"}
 
+@app.get("/healthz")
+def healthz(): return {"status":"ok"}
+
 @app.get("/api/health")
 def health(): return {"status":"ok","service":"medschedule-api"}
