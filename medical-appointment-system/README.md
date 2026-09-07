@@ -1,6 +1,6 @@
 # MedSchedule — Hệ thống quản lý lịch khám bệnh
 
-Ứng dụng localhost bám theo quy trình trong tài liệu phân công 08/2026: bệnh nhân đặt lịch → `CONFIRMED` → lễ tân `CHECK-IN` → `WAITING` → bác sĩ `IN_PROGRESS` → `COMPLETED`; có `CANCELLED`, `NO_SHOW` và `WALK_IN` đúng định nghĩa nghiệp vụ.
+Ứng dụng localhost theo đúng luồng nghiệp vụ trong tài liệu phân công tháng 08/2026: bệnh nhân đặt lịch → CONFIRMED → lễ tân CHECK-IN → WAITING → bác sĩ IN_PROGRESS → COMPLETED; có CANCELLED, NO_SHOW và WALK_IN theo đúng định nghĩa nghiệp vụ.
 
 ## Tech stack
 
@@ -8,82 +8,71 @@
 - Backend: Python + FastAPI + SQLAlchemy + Pydantic
 - Database: PostgreSQL
 - Migration: Alembic
-- Authentication: JWT + Argon2 password hashing
+- Authentication: JWT + password hashing Argon2
 - API docs: Swagger/OpenAPI tại `/docs`
-- Source control: Git + GitHub ready
-- Có Docker Compose tùy chọn, nhưng **không bắt buộc**.
+- Source control: Git/GitHub ready
+- Local infrastructure: Docker Compose
 
-## Chạy trên Windows không cần Docker (khuyến nghị cho máy không bật virtualization)
+## Cấu trúc
 
-Cài trước:
-
-1. Python 3.11+
-2. Node.js LTS
-3. PostgreSQL 14+ cho Windows
-
-Sau khi giải nén ZIP, mở PowerShell/CMD tại thư mục `medical-appointment-system` và chạy:
-
-```bat
-run-local.bat
+```text
+medical-appointment-system/
+├─ frontend/
+├─ backend/
+├─ docs/
+├─ docker-compose.yml
+├─ .env.example
+├─ .gitignore
+└─ README.md
 ```
 
-Script sẽ:
+## Chạy nhanh bằng Docker
 
-- tạo `backend\.venv`;
-- cài Python dependencies;
-- tạo `backend\.env` nếu chưa có;
-- tìm `psql.exe` trong PATH hoặc thư mục PostgreSQL mặc định;
-- tạo role `meduser` với mật khẩu `medpass` và database `medical_appointments`;
-- chạy `alembic upgrade head`;
-- seed tài khoản demo;
-- mở FastAPI và React/Vite ở 2 cửa sổ riêng.
+Yêu cầu Docker Desktop.
 
-Lệnh tương đương thủ công:
-
-```bat
-setup-local.bat
+```bash
+docker compose up --build
 ```
 
-Sau đó backend:
-
-```bat
-cd backend
-.venv\Scripts\activate
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
-
-Frontend:
-
-```bat
-cd frontend
-npm install
-npm run dev -- --host 127.0.0.1
-```
-
-Mở:
+Sau đó mở:
 
 - Frontend: http://localhost:5173
 - Swagger: http://localhost:8000/docs
 - Health: http://localhost:8000/api/health
+- PostgreSQL: localhost:5432
 
-### Nếu PostgreSQL dùng user/password khác
+Backend tự chạy `alembic upgrade head`, sau đó seed dữ liệu demo.
 
-Chỉnh `backend\.env`:
+## Chạy không dùng Docker
+
+Cần PostgreSQL chạy local và tạo database `medical_appointments`.
+
+Backend:
+
+```bash
+cd backend
+python -m venv .venv
+# Windows
+.venv\\Scripts\\activate
+pip install -r requirements.txt
+copy .env.example .env
+alembic upgrade head
+uvicorn app.main:app --reload
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Mặc định frontend gọi `http://localhost:8000/api`. Có thể đổi bằng `frontend/.env`:
 
 ```env
-DATABASE_URL=postgresql+psycopg://USER:PASSWORD@localhost:5432/medical_appointments
-JWT_SECRET=change-this-secret-in-production
-CORS_ORIGINS=http://localhost:5173
+VITE_API_BASE_URL=http://localhost:8000/api
 ```
-
-Sau đó chạy lại:
-
-```bat
-cd backend
-.venv\Scripts\alembic.exe upgrade head
-```
-
-Nếu không muốn dùng script tự tạo database, có thể tạo database `medical_appointments` thủ công rồi giữ nguyên `DATABASE_URL` phù hợp.
 
 ## Tài khoản demo
 
@@ -97,27 +86,40 @@ Mật khẩu tất cả tài khoản demo: `123456`
 | DOCTOR | doctor2@medschedule.local |
 | PATIENT | patient@medschedule.local |
 
-## Luồng kiểm thử E2E
+## Luồng kiểm thử E2E đề xuất
 
-### PATIENT
+### Patient
+1. Register/Login.
+2. Chọn chuyên khoa.
+3. Chọn bác sĩ.
+4. Chọn ngày làm việc.
+5. Chọn slot trống.
+6. Nhập lý do và đặt lịch → `CONFIRMED`.
+7. Xem chi tiết lịch.
+8. Đổi lịch sang slot khác.
+9. Hủy lịch → `CANCELLED` và slot được giải phóng.
+10. Kiểm tra không đặt được cùng slot hoặc cùng giờ.
 
-Đăng ký/đăng nhập → chuyên khoa → bác sĩ → ngày → slot → lý do → đặt lịch `CONFIRMED` → xem chi tiết → đổi lịch → hủy lịch `CANCELLED`.
+### Receptionist
+1. Đăng nhập.
+2. Xem lịch hôm nay.
+3. Check-in → `CHECKED_IN` → `WAITING`.
+4. Gọi bệnh nhân trong queue.
+5. Tạo `WALK_IN`.
+6. Đánh dấu `NO_SHOW` chỉ sau quá 15 phút.
+7. Kiểm tra ưu tiên queue: appointment đúng giờ → bệnh nhân trễ → walk-in.
 
-Kiểm tra lỗi: double booking slot, bệnh nhân tự trùng giờ, slot đã qua, ngày bác sĩ nghỉ, đổi sang slot đã có người đặt.
+### Doctor
+1. Đăng nhập.
+2. Xem bệnh nhân WAITING.
+3. Bắt đầu khám → `IN_PROGRESS`.
+4. Nhập chẩn đoán / ghi chú / đơn thuốc.
+5. Hoàn thành → `COMPLETED`.
+6. Kiểm tra bác sĩ không thể thao tác appointment của bác sĩ khác.
 
-### RECEPTIONIST
-
-Xem lịch hôm nay → tìm bệnh nhân/mã lịch/SĐT → check-in `CHECKED_IN` → vào `WAITING` → gọi queue → tạo `WALK_IN` → đánh dấu `NO_SHOW` sau hơn 15 phút.
-
-Ưu tiên queue: appointment check-in đúng giờ → bệnh nhân trễ được nhận → walk-in.
-
-### DOCTOR
-
-Xem `WAITING` → gọi/bắt đầu `IN_PROGRESS` → nhập chẩn đoán/kết quả → `COMPLETED`. Bác sĩ chỉ được thao tác appointment của chính mình.
-
-### ADMIN
-
-Dashboard: tổng lịch hôm nay, waiting, in-progress, completed, cancelled, no-show.
+### Admin
+1. Đăng nhập.
+2. Xem dashboard hôm nay: tổng lịch, waiting, in-progress, completed, cancelled, no-show.
 
 ## API chính
 
@@ -163,39 +165,33 @@ Dashboard: tổng lịch hôm nay, waiting, in-progress, completed, cancelled, n
 - `POST /api/appointments/{id}/medical-result`
 - `PATCH /api/appointments/{id}/complete`
 
-## Quy tắc nghiệp vụ
+## Quy tắc nghiệp vụ được khóa trong backend
 
-- Không đặt lịch vào ngày bác sĩ không làm việc/ngày nghỉ.
+- Không đặt lịch vào ngày bác sĩ không làm việc hoặc ngày nghỉ.
 - Không chọn slot đã qua trong ngày hiện tại.
-- Không double-booking slot của bác sĩ.
+- Không double-booking một slot của bác sĩ.
 - Một bệnh nhân không được đặt hai lịch cùng giờ.
 - Hủy chỉ áp dụng cho `CONFIRMED`.
-- Đổi lịch phải kiểm tra slot mới trước rồi mới giải phóng slot cũ.
+- Đổi lịch chỉ áp dụng cho `CONFIRMED` và kiểm tra slot mới trước.
 - `CONFIRMED → CHECKED_IN → WAITING`.
 - `NO_SHOW` chỉ sau hơn 15 phút kể từ giờ hẹn.
 - `WAITING → IN_PROGRESS → COMPLETED`.
-- Bác sĩ chỉ được thao tác appointment của chính mình.
-- API luôn kiểm tra JWT/role; ẩn nút trên frontend không thay thế authorization.
-- `WALK_IN` là loại lượt khám, không phải trạng thái appointment.
+- Bác sĩ chỉ được thao tác appointment thuộc chính mình.
+- API kiểm tra JWT và role; ẩn nút trên frontend không được dùng thay cho authorization.
 
-## Docker (tùy chọn)
+## Test / kiểm tra chất lượng
 
-Nếu máy có Docker Desktop và virtualization hoạt động:
+Trong gói có `docs/TEST_REPORT.md`. Môi trường tạo artifact này không có Docker/PostgreSQL và không có kết nối package registry, vì vậy không thể trung thực tuyên bố đã chạy browser E2E/DB integration trên chính máy build. Đã thực hiện static validation, Python compile check và kiểm tra cấu trúc route/service/config; báo cáo nêu rõ phần nào cần chạy khi giải nén trên máy có Docker.
+
+## Git
+
+Khuyến nghị:
 
 ```bash
-docker compose up --build
+git init
+git add .
+git commit -m "feat: complete medical appointment system"
+git branch -M main
+git remote add origin <your-github-repository>
+git push -u origin main
 ```
-
-Nếu Docker Desktop báo `Virtualization support not detected`, bỏ qua Docker và dùng `run-local.bat` ở trên.
-
-## Test / chất lượng
-
-`docs/TEST_REPORT.md` ghi lại phạm vi kiểm thử. Trong môi trường build artifact không có Docker/PostgreSQL runtime nên không tuyên bố giả rằng browser E2E/DB integration đã chạy thành công ở đây. Source đã được kiểm tra compile/static structure; khi chạy local hãy thực hiện checklist E2E bên trên.
-
-## Production deployment
-
-- Frontend: Vercel, Root Directory `frontend`, Build `npm run build`, Output `dist`.
-- Backend: Render, Root Directory `backend`, Python 3.13.5, Build `pip install -r requirements.txt`, Start `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
-- Frontend env: `VITE_API_BASE_URL=https://<render-api>/api`.
-- Backend env: `DATABASE_URL`, `JWT_SECRET`, `JWT_ALGORITHM=HS256`, `JWT_EXPIRE_MINUTES=120`, `CORS_ORIGINS=<vercel-domain>`.
-- Do not commit a real `.env` or database credentials.
