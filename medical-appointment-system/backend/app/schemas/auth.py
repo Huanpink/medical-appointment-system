@@ -1,61 +1,53 @@
-from typing import Annotated, Any
-
-from pydantic import BaseModel, BeforeValidator, EmailStr, Field, TypeAdapter
-
+from pydantic import BaseModel, Field, field_validator
 from app.models.user import Role
 from app.schemas.common import ORMModel
 
-_EMAIL_ADAPTER = TypeAdapter(EmailStr)
-
-
-def _validate_email(value: Any) -> str:
-    """Validate normal emails while allowing local-only demo domains such as *.local."""
-    if not isinstance(value, str):
-        raise ValueError("Email không hợp lệ")
+def _validate_email(value: str) -> str:
     value = value.strip().lower()
-    if "@" not in value or value.startswith("@") or value.endswith("@"):
+    if len(value) > 160 or "@" not in value:
         raise ValueError("Email không hợp lệ")
-    domain = value.rsplit("@", 1)[1]
-    if domain.endswith(".local"):
-        return value
-    return str(_EMAIL_ADAPTER.validate_python(value))
-
-
-LocalEmail = Annotated[str, BeforeValidator(_validate_email)]
-
+    local, domain = value.rsplit("@", 1)
+    if not local or not domain or "." not in domain:
+        raise ValueError("Email không hợp lệ")
+    return value
 
 class RegisterIn(BaseModel):
     full_name: str = Field(min_length=2, max_length=120)
-    email: LocalEmail
+    email: str
     phone: str = Field(min_length=8, max_length=30)
     password: str = Field(min_length=6, max_length=100)
 
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        return _validate_email(value)
 
 class LoginIn(BaseModel):
-    email: LocalEmail
-    password: str = Field(min_length=1, max_length=100)
+    email: str
+    password: str
 
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        return _validate_email(value)
 
 class PasswordChange(BaseModel):
-    current_password: str = Field(min_length=1, max_length=100)
+    current_password: str
     new_password: str = Field(min_length=6, max_length=100)
-
 
 class UserOut(ORMModel):
     id: int
     full_name: str
-    email: LocalEmail
+    email: str
     phone: str | None
     role: Role
     patient_id: int | None = None
     doctor_id: int | None = None
 
-
 class TokenOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
-
 
 class PatientProfile(BaseModel):
     date_of_birth: str | None = None

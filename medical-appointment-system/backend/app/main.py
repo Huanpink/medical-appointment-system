@@ -11,10 +11,8 @@ app.include_router(auth.router);app.include_router(master.router);app.include_ro
 def startup():
     Base.metadata.create_all(bind=engine)
     seed_data()
-@app.get("/api/health")
-def health():
-    return {"status": "ok", "service": "medschedule-api"}
-
 @app.get("/")
-def root():
-    return {"status": "ok", "service": "medschedule-api", "docs": "/docs"}
+def root(): return {"service":"MedSchedule API","docs":"/docs"}
+
+@app.get("/api/health")
+def health(): return {"status":"ok","service":"medschedule-api"}

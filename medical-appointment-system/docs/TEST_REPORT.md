@@ -1,15 +1,31 @@
-# Test / Deployment Report
+# Test Report — MedSchedule
 
-## Source-level checks completed
-- Python `compileall` passed for `backend/app`.
-- Pydantic email validation was tested for normal emails and the demo `.local` domain.
-- Invalid email input is rejected by schema validation.
-- Frontend code was reviewed for FastAPI validation-error handling; error arrays/objects are converted to text before rendering.
-- Added Vercel SPA fallback for React Router deep links.
-- Added backend `/` and `/api/health` endpoints for smoke checks.
+## Static checks completed
 
-## Production issue fixed
-The demo login email `patient@medschedule.local` was rejected by Pydantic `EmailStr` because `.local` is a special-use domain. That caused HTTP 422; the frontend then attempted to render the structured FastAPI validation error object and React crashed with error #31. The schema now explicitly allows `.local` demo domains while continuing to validate normal email addresses, and the frontend normalizes validation errors to strings.
+- Python application compile check: passed (`python -m compileall -q backend/app`).
+- Project structure reviewed: frontend/backend/Alembic/routers/services/models/schemas.
+- Axios service layer present; frontend does not hard-code API URLs in page components.
+- Alembic now reads `DATABASE_URL` from `backend/.env` instead of relying only on a hard-coded connection string.
+- Local Windows start path added so Docker is optional.
 
-## Runtime limitation
-Full browser E2E and a production PostgreSQL integration test could not be executed in this build environment because the required frontend packages were not installed locally and `psycopg` was not available in the build runner. The deployed Render/Vercel environments should be smoke-tested after updating the repository.
+## Manual E2E checklist to run on a Windows machine
+
+1. Register → login → book → `CONFIRMED`.
+2. Duplicate same doctor/slot → rejected.
+3. Duplicate patient/time → rejected.
+4. Cancel → `CANCELLED`, slot available again.
+5. Reschedule → new slot accepted, old slot released.
+6. Reception check-in → `CHECKED_IN` → `WAITING`.
+7. Late/no-show rule (>15 minutes) enforced.
+8. Walk-in enters queue as `WALK_IN` type.
+9. Queue priority checked.
+10. Doctor starts `WAITING` → `IN_PROGRESS`.
+11. Medical result saved and appointment completed → `COMPLETED`.
+12. Doctor cannot modify another doctor's appointment.
+13. Role-protected API returns authorization error for invalid role.
+14. Admin dashboard counters load.
+15. Swagger endpoints respond at `/docs`.
+
+## Environment limitation
+
+The build environment used to prepare this ZIP did not provide a running Docker daemon or PostgreSQL server and did not have unrestricted package-registry access. Therefore no claim is made that full browser E2E and live PostgreSQL integration were executed in that build environment. The project includes Windows-local bootstrap scripts to run those checks on the target machine.
