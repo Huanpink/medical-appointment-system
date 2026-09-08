@@ -22,9 +22,12 @@ def add_schedule(doctor_id: int, data: ScheduleIn, db: Session = Depends(get_db)
         raise HTTPException(404, "Không tìm thấy bác sĩ")
     if user.role == Role.DOCTOR and user.doctor.id != doctor_id:
         raise HTTPException(403, "Không phải lịch của bạn")
-    overlap = db.scalar(select(DoctorSchedule).where(DoctorSchedule.doctor_id == doctor_id, DoctorSchedule.weekday == data.weekday))
-    if overlap:
-        raise HTTPException(409, "Thứ này đã có ca làm việc. Hãy chỉnh ca hiện có thay vì tạo trùng.")
+    existing = db.scalars(select(DoctorSchedule).where(DoctorSchedule.doctor_id == doctor_id, DoctorSchedule.weekday == data.weekday)).all()
+    for item in existing:
+        # Prevent overlapping shifts on the same weekday while allowing
+        # multiple non-overlapping shifts such as ca 1 + ca 2.
+        if max(data.start_time, item.start_time) < min(data.end_time, item.end_time):
+            raise HTTPException(409, "Ca làm việc bị trùng giờ với ca hiện có trong ngày. Hãy chỉnh thời gian hoặc chọn ca khác.")
     s = DoctorSchedule(doctor_id=doctor_id, **data.model_dump())
     db.add(s); db.commit(); db.refresh(s); return s
 
@@ -35,9 +38,14 @@ def update_schedule(doctor_id: int, schedule_id: int, data: ScheduleIn, db: Sess
     s = db.get(DoctorSchedule, schedule_id)
     if not s or s.doctor_id != doctor_id: raise HTTPException(404, "Không tìm thấy ca làm việc")
     if user.role == Role.DOCTOR and user.doctor.id != doctor_id: raise HTTPException(403, "Không phải lịch của bạn")
-    clash = db.scalar(select(DoctorSchedule).where(DoctorSchedule.doctor_id == doctor_id, DoctorSchedule.weekday == data.weekday, DoctorSchedule.id != schedule_id))
-    if clash:
-        raise HTTPException(409, "Thứ này đã có ca làm việc khác. Hãy chỉnh ca hiện có thay vì tạo trùng.")
+    existing = db.scalars(select(DoctorSchedule).where(
+        DoctorSchedule.doctor_id == doctor_id,
+        DoctorSchedule.weekday == data.weekday,
+        DoctorSchedule.id != schedule_id,
+    )).all()
+    for item in existing:
+        if max(data.start_time, item.start_time) < min(data.end_time, item.end_time):
+            raise HTTPException(409, "Ca làm việc bị trùng giờ với ca hiện có trong ngày. Hãy chỉnh thời gian hoặc chọn ca khác.")
     for k, v in data.model_dump().items(): setattr(s, k, v)
     db.commit(); db.refresh(s); return s
 
