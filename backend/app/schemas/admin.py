@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from app.models.user import Role
 
 class AdminPatientUpdate(BaseModel):
     full_name: str = Field(min_length=2, max_length=120)
@@ -60,4 +61,5 @@ class AdminUserUpdate(BaseModel):
     full_name: str = Field(min_length=2, max_length=120)
     email: str = Field(min_length=5, max_length=160)
     phone: str | None = Field(default=None, max_length=30)
+    role: Role
     is_active: bool = True

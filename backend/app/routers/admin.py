@@ -123,11 +123,28 @@ def update_user(user_id: int, data: AdminUserUpdate, db: Session = Depends(get_d
     other = db.scalar(select(User).where(User.email == email, User.id != user_id))
     if other:
         raise HTTPException(409, "Email đã được sử dụng")
-    if target.id == user.id and not data.is_active:
-        raise HTTPException(400, "Không thể tự khóa tài khoản đang đăng nhập")
+    if target.id == user.id and (not data.is_active or data.role != Role.ADMIN):
+        raise HTTPException(400, "Không thể tự khóa hoặc tự đổi vai trò tài khoản đang đăng nhập")
+
+    current_role = target.role
+    new_role = data.role
+    patient = db.scalar(select(Patient).where(Patient.user_id == target.id))
+    doctor = db.scalar(select(Doctor).where(Doctor.user_id == target.id))
+
+    # Role changes must remain consistent with the professional/profile record.
+    # Admin/Receptionist do not require a linked domain profile.
+    if new_role == Role.PATIENT and not patient:
+        raise HTTPException(400, "Không thể gán vai trò Bệnh nhân vì tài khoản chưa có hồ sơ bệnh nhân")
+    if new_role == Role.DOCTOR and not doctor:
+        raise HTTPException(400, "Không thể gán vai trò Bác sĩ vì tài khoản chưa có hồ sơ bác sĩ. Hãy tạo bác sĩ trong mục Bác sĩ trước")
+    if new_role != Role.DOCTOR and doctor and current_role == Role.DOCTOR:
+        # Keep doctor profile for history, but role controls access.
+        pass
+
     target.full_name = data.full_name.strip()
     target.email = email
     target.phone = data.phone.strip() if data.phone else None
+    target.role = new_role
     target.is_active = data.is_active
     db.commit()
     db.refresh(target)
