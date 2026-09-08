@@ -96,7 +96,8 @@ def update_user(user_id: int, data: AdminUserUpdate, db: Session = Depends(get_d
     target.phone = data.phone.strip() if data.phone else None
     target.is_active = data.is_active
     db.commit()
-    return {"message":"Đã cập nhật tài khoản"}
+    db.refresh(target)
+    return {"message":"Đã cập nhật tài khoản", "id": target.id, "user_code": f"USER-{target.id:06d}", "full_name": target.full_name, "email": target.email, "phone": target.phone, "role": target.role.value if hasattr(target.role, "value") else str(target.role), "is_active": target.is_active}
 
 
 @router.post("/users/{user_id}/reset-password")
@@ -224,6 +225,7 @@ def update_doctor(doctor_id: int, data: AdminDoctorUpdate, db: Session = Depends
     db.refresh(d)
     return {
         "message": "Đã cập nhật thông tin bác sĩ",
+        "login_email": u.email,
         "doctor_id": d.id,
         "user_id": u.id,
         "full_name": u.full_name,
