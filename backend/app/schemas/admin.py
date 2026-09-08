@@ -24,6 +24,7 @@ class AdminDoctorCreate(BaseModel):
     specialty_id: int
 
 class AdminDoctorUpdate(BaseModel):
+    email: str = Field(min_length=5, max_length=160)
     full_name: str = Field(min_length=2, max_length=120)
     phone: str | None = Field(default=None, max_length=30)
     license_no: str = Field(min_length=2, max_length=80)
@@ -50,3 +51,13 @@ class ReceptionPatientCreate(BaseModel):
     gender: str | None = None
     address: str | None = None
     emergency_contact: str | None = None
+
+
+class AdminPasswordReset(BaseModel):
+    password: str = Field(min_length=6, max_length=120)
+
+class AdminUserUpdate(BaseModel):
+    full_name: str = Field(min_length=2, max_length=120)
+    email: str = Field(min_length=5, max_length=160)
+    phone: str | None = Field(default=None, max_length=30)
+    is_active: bool = True

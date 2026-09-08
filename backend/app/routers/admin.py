@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import require_roles
 from app.models import Appointment, AppointmentStatus, Doctor, DoctorSpecialty, Patient, Role, Service, Specialty, User
-from app.schemas.admin import AdminDoctorCreate, AdminDoctorUpdate, AdminPatientUpdate, AdminServiceCreate, AdminServiceUpdate, AdminSpecialtyCreate
+from app.schemas.admin import AdminDoctorCreate, AdminDoctorUpdate, AdminPatientUpdate, AdminServiceCreate, AdminServiceUpdate, AdminSpecialtyCreate, AdminPasswordReset, AdminUserUpdate
 from app.core.security import hash_password
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
@@ -21,6 +21,51 @@ def dashboard(db: Session = Depends(get_db), user=Depends(admin_user)):
     d = datetime.now().strftime('%Y-%m-%d')
     counts = {s.value: db.scalar(select(func.count()).select_from(Appointment).where(Appointment.appointment_date == d, Appointment.status == s.value)) or 0 for s in AppointmentStatus}
     return {"date": d, "total_today": sum(counts.values()), "waiting": counts[AppointmentStatus.WAITING.value], "completed": counts[AppointmentStatus.COMPLETED.value], "cancelled": counts[AppointmentStatus.CANCELLED.value], "no_show": counts[AppointmentStatus.NO_SHOW.value], "in_progress": counts[AppointmentStatus.IN_PROGRESS.value]}
+
+
+@router.get("/users")
+def users(q: str = Query(default("")), db: Session = Depends(get_db), user=Depends(admin_user)):
+    needle = q.strip()
+    stmt = select(User).order_by(User.role, User.full_name)
+    if needle:
+        p = f"%{needle}%"
+        stmt = stmt.where(or_(User.full_name.ilike(p), User.email.ilike(p), User.phone.ilike(p), cast(User.id, String).ilike(p)))
+    rows = db.scalars(stmt).all()
+    out=[]
+    for u in rows:
+        patient = db.scalar(select(Patient).where(Patient.user_id == u.id))
+        doctor = db.scalar(select(Doctor).where(Doctor.user_id == u.id))
+        out.append({"id":u.id,"full_name":u.full_name,"email":u.email,"phone":u.phone,"role":u.role.value if hasattr(u.role,'value') else str(u.role),"is_active":u.is_active,"patient_id":patient.id if patient else None,"patient_code":patient.patient_code if patient else None,"doctor_id":doctor.id if doctor else None})
+    return out
+
+
+@router.put("/users/{user_id}")
+def update_user(user_id: int, data: AdminUserUpdate, db: Session = Depends(get_db), user=Depends(admin_user)):
+    target = db.get(User, user_id)
+    if not target:
+        raise HTTPException(404, "Không tìm thấy tài khoản")
+    email = data.email.strip().lower()
+    other = db.scalar(select(User).where(User.email == email, User.id != user_id))
+    if other:
+        raise HTTPException(409, "Email đã được sử dụng")
+    if target.id == user.id and not data.is_active:
+        raise HTTPException(400, "Không thể tự khóa tài khoản đang đăng nhập")
+    target.full_name = data.full_name.strip()
+    target.email = email
+    target.phone = data.phone.strip() if data.phone else None
+    target.is_active = data.is_active
+    db.commit()
+    return {"message":"Đã cập nhật tài khoản"}
+
+
+@router.post("/users/{user_id}/reset-password")
+def reset_user_password(user_id: int, data: AdminPasswordReset, db: Session = Depends(get_db), user=Depends(admin_user)):
+    target = db.get(User, user_id)
+    if not target:
+        raise HTTPException(404, "Không tìm thấy tài khoản")
+    target.password_hash = hash_password(data.password)
+    db.commit()
+    return {"message":"Đã đặt lại mật khẩu"}
 
 
 @router.get("/patients")
@@ -118,7 +163,12 @@ def update_doctor(doctor_id: int, data: AdminDoctorUpdate, db: Session = Depends
         raise HTTPException(409, "Số giấy phép đã tồn tại")
     if not db.get(Specialty, data.specialty_id):
         raise HTTPException(400, "Chuyên khoa không tồn tại")
+    email = data.email.strip().lower()
+    email_owner = db.scalar(select(User).where(User.email == email, User.id != u.id))
+    if email_owner:
+        raise HTTPException(409, "Email đã được sử dụng")
     u.full_name = data.full_name.strip()
+    u.email = email
     u.phone = data.phone.strip() if data.phone else None
     d.license_no = data.license_no.strip()
     d.bio = data.bio.strip()

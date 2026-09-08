@@ -203,3 +203,10 @@ Nếu Docker Desktop báo `Virtualization support not detected`, bỏ qua Docker
 
 ## Thanh toán
 Bệnh nhân xem giá niêm yết mẫu theo chuyên khoa và có thể chọn thanh toán tại cơ sở hoặc QR mô phỏng. QR chỉ phục vụ demo đồ án, không kết nối ngân hàng thật. Lịch đã thanh toán mà bị hủy/NO_SHOW sẽ chuyển `REFUND_PENDING` để nhân viên xử lý.
+
+
+## Admin account management (v14)
+- Admin has a dedicated **Tài khoản** tab to search users across PATIENT / RECEPTIONIST / DOCTOR / ADMIN.
+- Admin can edit account name, email, phone and active/locked status.
+- Admin can reset passwords for any account; doctor and patient edit dialogs also expose **Đặt lại mật khẩu**.
+- Doctor edit now allows updating the login email while enforcing uniqueness.
