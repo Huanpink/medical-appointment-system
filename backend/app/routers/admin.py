@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import require_roles
 from app.models import Appointment, AppointmentStatus, Doctor, DoctorSpecialty, Patient, Role, Service, Specialty, User
-from app.schemas.admin import AdminDoctorUpdate, AdminPatientUpdate, AdminServiceCreate, AdminServiceUpdate
+from app.schemas.admin import AdminDoctorCreate, AdminDoctorUpdate, AdminPatientUpdate, AdminServiceCreate, AdminServiceUpdate, AdminSpecialtyCreate
+from app.core.security import hash_password
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
@@ -57,6 +58,22 @@ def update_patient(patient_id: int, data: AdminPatientUpdate, db: Session = Depe
     return {"message": "Đã cập nhật hồ sơ bệnh nhân"}
 
 
+@router.get("/specialties")
+def specialties(db: Session = Depends(get_db), user=Depends(admin_user)):
+    rows = db.scalars(select(Specialty).order_by(Specialty.name)).all()
+    return [{"id": s.id, "name": s.name, "description": s.description} for s in rows]
+
+
+@router.post("/specialties")
+def create_specialty(data: AdminSpecialtyCreate, db: Session = Depends(get_db), user=Depends(admin_user)):
+    name = data.name.strip()
+    if db.scalar(select(Specialty).where(func.lower(Specialty.name) == name.lower())):
+        raise HTTPException(409, "Chuyên khoa đã tồn tại")
+    s = Specialty(name=name, description=data.description.strip())
+    db.add(s); db.commit(); db.refresh(s)
+    return {"id": s.id, "name": s.name, "description": s.description, "message": "Đã thêm chuyên khoa"}
+
+
 @router.get("/doctors")
 def doctors(db: Session = Depends(get_db), user=Depends(admin_user)):
     rows = db.execute(
@@ -70,6 +87,24 @@ def doctors(db: Session = Depends(get_db), user=Depends(admin_user)):
                     "email": u.email, "license_no": d.license_no, "bio": d.bio, "room": d.room,
                     "specialty_id": sid, "specialty_name": sname, "is_active": u.is_active})
     return out
+
+
+@router.post("/doctors")
+def create_doctor(data: AdminDoctorCreate, db: Session = Depends(get_db), user=Depends(admin_user)):
+    email = data.email.strip().lower()
+    if db.scalar(select(User).where(User.email == email)):
+        raise HTTPException(409, "Email tài khoản bác sĩ đã tồn tại")
+    if db.scalar(select(Doctor).where(Doctor.license_no == data.license_no.strip())):
+        raise HTTPException(409, "Số giấy phép đã tồn tại")
+    if not db.get(Specialty, data.specialty_id):
+        raise HTTPException(400, "Chuyên khoa không tồn tại")
+    u = User(full_name=data.full_name.strip(), email=email, phone=data.phone.strip() if data.phone else None, password_hash=hash_password(data.password), role=Role.DOCTOR, is_active=True)
+    db.add(u); db.flush()
+    d = Doctor(user_id=u.id, license_no=data.license_no.strip(), bio=data.bio.strip(), room=data.room.strip())
+    db.add(d); db.flush()
+    db.add(DoctorSpecialty(doctor_id=d.id, specialty_id=data.specialty_id))
+    db.commit(); db.refresh(d)
+    return {"doctor_id": d.id, "user_id": u.id, "full_name": u.full_name, "email": u.email, "message": "Đã thêm bác sĩ và cấp tài khoản đăng nhập"}
 
 
 @router.put("/doctors/{doctor_id}")

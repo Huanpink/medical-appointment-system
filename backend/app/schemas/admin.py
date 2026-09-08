@@ -9,6 +9,20 @@ class AdminPatientUpdate(BaseModel):
     address: str | None = None
     emergency_contact: str | None = None
 
+class AdminSpecialtyCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    description: str = ""
+
+class AdminDoctorCreate(BaseModel):
+    full_name: str = Field(min_length=2, max_length=120)
+    email: str = Field(min_length=5, max_length=160)
+    phone: str | None = Field(default=None, max_length=30)
+    password: str = Field(min_length=6, max_length=120)
+    license_no: str = Field(min_length=2, max_length=80)
+    bio: str = ""
+    room: str = Field(min_length=1, max_length=40)
+    specialty_id: int
+
 class AdminDoctorUpdate(BaseModel):
     full_name: str = Field(min_length=2, max_length=120)
     phone: str | None = Field(default=None, max_length=30)
@@ -27,7 +41,6 @@ class AdminServiceCreate(BaseModel):
 
 class AdminServiceUpdate(AdminServiceCreate):
     pass
-
 
 class ReceptionPatientCreate(BaseModel):
     full_name: str = Field(min_length=2, max_length=120)
