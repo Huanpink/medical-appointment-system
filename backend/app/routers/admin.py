@@ -24,7 +24,7 @@ def dashboard(db: Session = Depends(get_db), user=Depends(admin_user)):
 
 
 @router.get("/users")
-def users(q: str = Query(default("")), group: str = Query(default("all")), db: Session = Depends(get_db), user=Depends(admin_user)):
+def users(q: str = Query(default=""), group: str = Query(default="all"), db: Session = Depends(get_db), user=Depends(admin_user)):
     needle = q.strip()
     stmt = select(User)
     if group == "staff":
@@ -51,7 +51,7 @@ def users(q: str = Query(default("")), group: str = Query(default("all")), db: S
     return out
 
 @router.get("/accounts")
-def accounts(q: str = Query(default("")), group: str = Query(default("all")), db: Session = Depends(get_db), user=Depends(admin_user)):
+def accounts(q: str = Query(default=""), group: str = Query(default="all"), db: Session = Depends(get_db), user=Depends(admin_user)):
     needle = q.strip()
     stmt = select(User)
     if group == "staff":
@@ -272,5 +272,5 @@ def update_service(service_id: int, data: AdminServiceUpdate, db: Session = Depe
 
 
 @router.get("/accounts-v2")
-def accounts_v2(q: str = Query(default("")), group: str = Query(default("all")), db: Session = Depends(get_db), user=Depends(admin_user)):
+def accounts_v2(q: str = Query(default=""), group: str = Query(default="all"), db: Session = Depends(get_db), user=Depends(admin_user)):
     return accounts(q=q, group=group, db=db, user=user)
