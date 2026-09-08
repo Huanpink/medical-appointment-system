@@ -216,3 +216,8 @@ Bệnh nhân xem giá niêm yết mẫu theo chuyên khoa và có thể chọn t
 - Doctor email/login address can be updated by Admin and the updated value is refreshed from the API immediately.
 - API returns the saved email in the doctor update response.
 - Smoke test covers updating a doctor's Gmail-style address.
+
+## v16 admin fixes
+- Fixed doctor update feedback so email never displays `undefined`.
+- Admin account search returns explicit USER-xxxxxx and supports patient code lookup.
+- Added `/api/admin/accounts` alias for account management.

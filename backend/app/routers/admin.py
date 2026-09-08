@@ -36,14 +36,23 @@ def users(q: str = Query(default("")), group: str = Query(default("all")), db: S
     stmt = stmt.order_by(User.role, User.full_name)
     if needle:
         p = f"%{needle}%"
-        stmt = stmt.where(or_(User.full_name.ilike(p), User.email.ilike(p), User.phone.ilike(p), cast(User.id, String).ilike(p)))
+        conditions = [User.full_name.ilike(p), User.email.ilike(p), User.phone.ilike(p), cast(User.id, String).ilike(p)]
+        patient_ids = [x[0] for x in db.execute(select(Patient.user_id).where(cast(Patient.id, String).ilike(p))).all()]
+        if patient_ids:
+            conditions.append(User.id.in_(patient_ids))
+        stmt = stmt.where(or_(*conditions))
     rows = db.scalars(stmt).all()
     out=[]
     for u in rows:
         patient = db.scalar(select(Patient).where(Patient.user_id == u.id))
         doctor = db.scalar(select(Doctor).where(Doctor.user_id == u.id))
-        out.append({"id":u.id,"full_name":u.full_name,"email":u.email,"phone":u.phone,"role":u.role.value if hasattr(u.role,'value') else str(u.role),"is_active":u.is_active,"patient_id":patient.id if patient else None,"patient_code":patient.patient_code if patient else None,"doctor_id":doctor.id if doctor else None})
+        role = u.role.value if hasattr(u.role,'value') else str(u.role)
+        out.append({"id":u.id,"user_code":f"USER-{u.id:06d}","full_name":u.full_name,"email":u.email,"phone":u.phone,"role":role,"is_active":u.is_active,"patient_id":patient.id if patient else None,"patient_code":patient.patient_code if patient else None,"doctor_id":doctor.id if doctor else None})
     return out
+
+@router.get("/accounts")
+def accounts(q: str = Query(default("")), group: str = Query(default("all")), db: Session = Depends(get_db), user=Depends(admin_user)):
+    return users(q=q, group=group, db=db, user=user)
 
 
 @router.put("/users/{user_id}")

@@ -60,7 +60,7 @@ export const adminApi = {
   doctors: () => api.get('/admin/doctors'),
   createDoctor: d => api.post('/admin/doctors', d),
   updateDoctor: (id, d) => api.put(`/admin/doctors/${id}`, d),
-  users: (q, group='all') => api.get('/admin/users', { params: { ...(q ? { q } : {}), group } }),
+  users: (q, group='all') => api.get('/admin/users', { params: { ...(q ? { q } : {}), group } }), accounts: (q, group='all') => api.get('/admin/accounts', { params: { ...(q ? { q } : {}), group } }),
   updateUser: (id, d) => api.put(`/admin/users/${id}`, d),
   resetPassword: (id, password) => api.post(`/admin/users/${id}/reset-password`, { password }),
   services: () => api.get('/admin/services'),
