@@ -10,6 +10,16 @@ class Patient(Base):
     gender: Mapped[str | None] = mapped_column(String(20), nullable=True)
     address: Mapped[str | None] = mapped_column(String(255), nullable=True)
     emergency_contact: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    @property
+    def patient_code(self) -> str:
+        """Human-friendly patient code derived from the database id.
+
+        The database id is auto-incremented, so every newly created patient
+        automatically receives a stable code without requiring a manual field.
+        """
+        return f"BN-{self.id:06d}"
+
     user: Mapped["User"] = relationship(back_populates="patient")
     appointments: Mapped[list["Appointment"]] = relationship(back_populates="patient")
 

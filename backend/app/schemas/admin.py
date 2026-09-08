@@ -27,3 +27,13 @@ class AdminServiceCreate(BaseModel):
 
 class AdminServiceUpdate(AdminServiceCreate):
     pass
+
+
+class ReceptionPatientCreate(BaseModel):
+    full_name: str = Field(min_length=2, max_length=120)
+    phone: str | None = Field(default=None, max_length=30)
+    email: str | None = Field(default=None, max_length=160)
+    date_of_birth: str | None = None
+    gender: str | None = None
+    address: str | None = None
+    emergency_contact: str | None = None

@@ -23,6 +23,7 @@ class ProfileOut(BaseModel):
     phone: str | None
     role: str
     patient_id: int | None = None
+    patient_code: str | None = None
     date_of_birth: str | None = None
     gender: str | None = None
     address: str | None = None

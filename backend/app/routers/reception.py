@@ -6,6 +6,7 @@ from app.core.database import get_db
 from app.core.deps import require_roles
 from app.models import *
 from app.schemas.appointment import WalkInIn, QueueOut
+from app.schemas.admin import ReceptionPatientCreate
 
 router = APIRouter(prefix="/api", tags=["Reception & Queue"])
 
@@ -51,7 +52,7 @@ def appointments(date: str | None = None, db: Session = Depends(get_db), user=De
         late_minutes = max(0, int((now - scheduled).total_seconds() // 60)) if a.appointment_date == now.strftime("%Y-%m-%d") else 0
         result.append({
             "id": a.id,
-            "appointment_code": f"AP-{a.id:06d}",
+            "appointment_code": a.appointment_code,
             "patient_id": a.patient_id,
             "patient_name": a.patient.user.full_name,
             "phone": a.patient.user.phone,
@@ -110,9 +111,83 @@ def no_show(appointment_id: int, db: Session = Depends(get_db), user=Depends(req
     if now < scheduled + timedelta(minutes=15):
         raise HTTPException(400, "Chỉ được đánh dấu không đến sau 15 phút kể từ giờ hẹn")
     a.status = AppointmentStatus.NO_SHOW.value
-    if a.payment and a.payment.status in {PaymentStatus.PAID.value, PaymentStatus.PENDING.value}: a.payment.status = PaymentStatus.REFUND_PENDING.value
+    refund_pending = False
+    if a.payment:
+        if a.payment.status == PaymentStatus.PAID.value:
+            a.payment.status = PaymentStatus.REFUND_PENDING.value
+            refund_pending = True
+        elif a.payment.status == PaymentStatus.PENDING.value:
+            a.payment.status = PaymentStatus.UNPAID.value
+            a.payment.qr_payload = None
     db.commit()
-    return {"message": "Đã đánh dấu bệnh nhân không đến khám"}
+    return {
+        "message": "Đã đánh dấu bệnh nhân không đến khám",
+        "refund_pending": refund_pending,
+        "payment_status": a.payment.status if a.payment else None
+    }
+
+
+@router.get("/refund-requests")
+def refund_requests(db: Session = Depends(get_db), user=Depends(require_roles(Role.RECEPTIONIST, Role.ADMIN))):
+    rows = db.scalars(
+        select(Appointment).join(Payment).where(Payment.status == PaymentStatus.REFUND_PENDING.value)
+        .order_by(Appointment.appointment_date.desc(), Appointment.start_time.desc())
+    ).all()
+    return [{
+        "appointment_id": a.id,
+        "appointment_code": a.appointment_code,
+        "patient_id": a.patient_id,
+        "patient_code": a.patient.patient_code,
+        "patient_name": a.patient.user.full_name,
+        "phone": a.patient.user.phone,
+        "email": a.patient.user.email,
+        "appointment_date": a.appointment_date,
+        "start_time": a.start_time,
+        "doctor_name": a.doctor.user.full_name,
+        "service_name": a.service.name if a.service else None,
+        "amount": a.payment.amount if a.payment else 0,
+        "payment_method": a.payment.method if a.payment else None,
+        "payment_reference": a.payment.reference if a.payment else None,
+        "appointment_status": a.status,
+        "payment_status": a.payment.status if a.payment else None,
+        "checked_in_at": a.checked_in_at.isoformat() if a.checked_in_at else None,
+        "created_at": a.created_at.isoformat() if a.created_at else None,
+    } for a in rows]
+
+
+@router.post("/reception-patients")
+def create_reception_patient(data: ReceptionPatientCreate, db: Session = Depends(get_db), user=Depends(require_roles(Role.RECEPTIONIST, Role.ADMIN))):
+    from uuid import uuid4
+    full_name = data.full_name.strip()
+    email = (data.email or "").strip().lower()
+    if email:
+        if db.scalar(select(User).where(User.email == email)):
+            raise HTTPException(409, "Email đã được sử dụng")
+    else:
+        # Walk-in patients do not need a login email. Generate a stable internal
+        # address so the existing User/Patient relationship remains intact.
+        email = f"patient-{uuid4().hex[:12]}@internal.medschedule.local"
+    u = User(
+        full_name=full_name,
+        email=email,
+        phone=data.phone.strip() if data.phone else None,
+        password_hash=__import__('app.core.security', fromlist=['hash_password']).hash_password(uuid4().hex),
+        role=Role.PATIENT,
+    )
+    db.add(u)
+    db.flush()
+    p = Patient(user_id=u.id, date_of_birth=data.date_of_birth, gender=data.gender, address=data.address, emergency_contact=data.emergency_contact)
+    db.add(p)
+    db.flush()
+    db.commit()
+    return {
+        "patient_id": p.id,
+        "patient_code": p.patient_code,
+        "user_id": u.id,
+        "full_name": u.full_name,
+        "phone": u.phone,
+        "email": data.email.strip().lower() if data.email else None,
+    }
 
 
 @router.post("/walk-ins", response_model=QueueOut)

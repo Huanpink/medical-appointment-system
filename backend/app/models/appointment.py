@@ -33,6 +33,10 @@ class Appointment(Base):
     service: Mapped["Service|None"] = relationship()
     payment: Mapped["Payment|None"] = relationship(back_populates="appointment", uselist=False, cascade="all, delete-orphan")
 
+    @property
+    def appointment_code(self) -> str:
+        return f"AP-{self.id:06d}"
+
 class PaymentStatus(str, Enum):
     UNPAID="UNPAID"
     PENDING="PENDING"

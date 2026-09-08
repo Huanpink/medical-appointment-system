@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import get_current_user
-from app.models import Payment, PaymentStatus, PaymentMethod, Role, User
+from app.models import Payment, PaymentStatus, PaymentMethod, Role, User, AppointmentStatus
 from app.schemas.payment import PaymentOut
 router=APIRouter(prefix="/api/payments",tags=["Payments"])
 def qr_image(payload):
@@ -24,12 +24,16 @@ def confirm_demo(appointment_id:int,db:Session=Depends(get_db),user:User=Depends
     p=db.scalar(select(Payment).where(Payment.appointment_id==appointment_id))
     if not p or not owned(p,user): raise HTTPException(404,"Không tìm thấy thông tin thanh toán")
     if p.status!=PaymentStatus.PENDING.value: raise HTTPException(400,"Khoản thanh toán không ở trạng thái chờ thanh toán")
+    if p.appointment.status in {AppointmentStatus.CANCELLED.value, AppointmentStatus.NO_SHOW.value}:
+        raise HTTPException(400,"Lịch khám đã hủy hoặc không đến, không thể tiếp tục thanh toán")
     p.status=PaymentStatus.PAID.value; p.paid_at=datetime.now(timezone.utc); db.commit(); db.refresh(p); return out(p)
 @router.post("/{appointment_id}/pay-later",response_model=PaymentOut)
 def pay_later(appointment_id:int,db:Session=Depends(get_db),user:User=Depends(get_current_user)):
     p=db.scalar(select(Payment).where(Payment.appointment_id==appointment_id))
     if not p or not owned(p,user): raise HTTPException(404,"Không tìm thấy thông tin thanh toán")
     if p.status not in {PaymentStatus.UNPAID.value,PaymentStatus.PENDING.value}: raise HTTPException(400,"Khoản thanh toán không thể chuyển sang thanh toán tại cơ sở")
+    if p.appointment.status in {AppointmentStatus.CANCELLED.value, AppointmentStatus.NO_SHOW.value}:
+        raise HTTPException(400,"Lịch khám đã hủy hoặc không đến, không thể đổi sang thanh toán tại cơ sở")
     p.method=PaymentMethod.OFFLINE.value; p.status=PaymentStatus.UNPAID.value; p.qr_payload=None; db.commit(); db.refresh(p); return out(p)
 
 @router.post("/{appointment_id}/refund",response_model=PaymentOut)

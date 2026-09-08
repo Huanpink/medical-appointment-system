@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import cast, or_, select, String
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_roles
@@ -41,8 +41,17 @@ def doctor(doctor_id:int,db:Session=Depends(get_db)):
 # Static path must be declared before /patients/{patient_id}.
 @router.get("/patients/search")
 def search_patients(q:str=Query(min_length=1),db:Session=Depends(get_db),user:User=Depends(require_roles(Role.RECEPTIONIST,Role.ADMIN))):
-    stmt=select(Patient,User).join(User,Patient.user_id==User.id).where((User.full_name.ilike(f"%{q}%"))|(User.phone.ilike(f"%{q}%"))|(User.email.ilike(f"%{q}%")))
-    return [{"id":p.id,"full_name":u.full_name,"phone":u.phone,"email":u.email,"patient_code":f"BN-{p.id:06d}"} for p,u in db.execute(stmt).all()]
+    needle=f"%{q.strip()}%"
+    stmt=select(Patient,User).join(User,Patient.user_id==User.id).where(
+        or_(
+            User.full_name.ilike(needle),
+            User.phone.ilike(needle),
+            User.email.ilike(needle),
+            cast(Patient.id, String).ilike(needle),
+            ("BN-" + cast(Patient.id, String)).ilike(needle),
+        )
+    )
+    return [{"id":p.id,"full_name":u.full_name,"phone":u.phone,"email":u.email,"patient_code":p.patient_code} for p,u in db.execute(stmt).all()]
 
 @router.get("/patients/{patient_id}",response_model=ProfileOut)
 def patient_profile(patient_id:int,db:Session=Depends(get_db), user:User=Depends(get_current_user)):
@@ -50,7 +59,7 @@ def patient_profile(patient_id:int,db:Session=Depends(get_db), user:User=Depends
     if not p: raise HTTPException(404,"Không tìm thấy bệnh nhân")
     if user.role==Role.PATIENT and p.user_id!=user.id: raise HTTPException(403,"Không có quyền")
     u=db.get(User,p.user_id)
-    return ProfileOut(id=u.id,full_name=u.full_name,email=u.email,phone=u.phone,role=u.role.value,patient_id=p.id,date_of_birth=p.date_of_birth,gender=p.gender,address=p.address,emergency_contact=p.emergency_contact)
+    return ProfileOut(id=u.id,full_name=u.full_name,email=u.email,phone=u.phone,role=u.role.value,patient_id=p.id,patient_code=p.patient_code,date_of_birth=p.date_of_birth,gender=p.gender,address=p.address,emergency_contact=p.emergency_contact)
 
 @router.put("/patients/{patient_id}")
 def update_patient(patient_id:int,data:PatientProfile,db:Session=Depends(get_db),user:User=Depends(get_current_user)):

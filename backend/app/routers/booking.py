@@ -86,10 +86,31 @@ def get_appointment(appointment_id:int,db:Session=Depends(get_db),user:User=Depe
 def cancel(appointment_id:int,db:Session=Depends(get_db),user:User=Depends(get_current_user)):
     a=db.get(Appointment,appointment_id)
     if not a or (user.role==Role.PATIENT and a.patient_id!=user.patient.id): raise HTTPException(404,"Không tìm thấy lịch")
+    if a.status==AppointmentStatus.CANCELLED.value:
+        refund_pending = bool(a.payment and a.payment.status == PaymentStatus.REFUND_PENDING.value)
+        return {
+            "message": "Lịch khám đã được hủy trước đó",
+            "payment_status": a.payment.status if a.payment else None,
+            "refund_pending": refund_pending,
+            "refund_message": "Khoản thanh toán đang chờ nhân viên xác nhận hoàn tiền." if refund_pending else "Lịch này không phát sinh hoàn tiền."
+        }
     if a.status!=AppointmentStatus.CONFIRMED.value: raise HTTPException(400,"Chỉ lịch đã xác nhận mới được hủy")
     a.status=AppointmentStatus.CANCELLED.value
-    if a.payment and a.payment.status in {PaymentStatus.PAID.value,PaymentStatus.PENDING.value}: a.payment.status=PaymentStatus.REFUND_PENDING.value
-    db.commit(); return {"message":"Đã hủy lịch khám"}
+    refund_pending = False
+    if a.payment:
+        if a.payment.status == PaymentStatus.PAID.value:
+            a.payment.status = PaymentStatus.REFUND_PENDING.value
+            refund_pending = True
+        elif a.payment.status == PaymentStatus.PENDING.value:
+            # QR was created but not paid: no refund is needed.
+            a.payment.status = PaymentStatus.UNPAID.value
+            a.payment.qr_payload = None
+    db.commit(); return {
+        "message": "Đã hủy lịch khám",
+        "payment_status": a.payment.status if a.payment else None,
+        "refund_pending": refund_pending,
+        "refund_message": "Khoản thanh toán đã chuyển sang chờ hoàn tiền để nhân viên xác nhận." if refund_pending else "Lịch chưa thanh toán nên không phát sinh hoàn tiền."
+    }
 
 @router.patch("/appointments/{appointment_id}/reschedule",response_model=AppointmentOut)
 def reschedule(appointment_id:int,data:RescheduleIn,db:Session=Depends(get_db),user:User=Depends(get_current_user)):

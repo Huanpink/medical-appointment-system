@@ -35,6 +35,7 @@ export const authApi = {
 export const masterApi = {
   specialties: () => api.get('/specialties'), services: sid => api.get('/services', { params: sid ? { specialtyId: sid } : undefined }), doctors: sid => api.get('/doctors', { params: sid ? { specialtyId: sid } : undefined }), doctor: id => api.get(`/doctors/${id}`),
   profile: id => api.get(`/patients/${id}`), updateProfile: (id, d) => api.put(`/patients/${id}`, d), searchPatients: q => api.get('/patients/search', { params: { q } }),
+  createReceptionPatient: d => api.post('/reception-patients', d),
 };
 export const paymentApi = { get: id => api.get(`/payments/${id}`), confirmDemo: id => api.post(`/payments/${id}/confirm-demo`), payLater: id => api.post(`/payments/${id}/pay-later`), refund: id => api.post(`/payments/${id}/refund`) };
 export const bookingApi = {
@@ -42,7 +43,7 @@ export const bookingApi = {
   get: id => api.get(`/appointments/${id}`), cancel: id => api.patch(`/appointments/${id}/cancel`), reschedule: (id, d) => api.patch(`/appointments/${id}/reschedule`, d),
 };
 export const receptionApi = {
-  appointments: date => api.get('/appointments', { params: { date } }), checkIn: id => api.patch(`/appointments/${id}/check-in`), noShow: id => api.patch(`/appointments/${id}/no-show`),
+  appointments: date => api.get('/appointments', { params: { date } }), refundRequests: () => api.get('/refund-requests'), checkIn: id => api.patch(`/appointments/${id}/check-in`), noShow: id => api.patch(`/appointments/${id}/no-show`),
   walkIn: d => api.post('/walk-ins', d), queue: doctorId => api.get('/queue', { params: doctorId ? { doctorId } : undefined }), addQueue: appointment_id => api.post('/queue', { appointment_id }), call: id => api.patch(`/queue/${id}/call`),
 };
 export const doctorApi = {

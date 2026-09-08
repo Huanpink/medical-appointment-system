@@ -30,7 +30,7 @@ def patients(q: str = Query(default=""), db: Session = Depends(get_db), user=Dep
         p = f"%{needle}%"
         stmt = stmt.where(or_(User.full_name.ilike(p), User.phone.ilike(p), User.email.ilike(p), cast(User.id, String).ilike(p)))
     return [
-        {"patient_id": p.id, "user_id": u.id, "patient_code": f"BN-{p.id:06d}", "full_name": u.full_name,
+        {"patient_id": p.id, "user_id": u.id, "patient_code": p.patient_code, "full_name": u.full_name,
          "email": u.email, "phone": u.phone, "date_of_birth": p.date_of_birth, "gender": p.gender,
          "address": p.address, "emergency_contact": p.emergency_contact, "is_active": u.is_active}
         for p, u in db.execute(stmt).all()
