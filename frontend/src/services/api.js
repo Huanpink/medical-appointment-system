@@ -44,7 +44,7 @@ export const bookingApi = {
 };
 export const receptionApi = {
   appointments: date => api.get('/appointments', { params: { date } }), refundRequests: () => api.get('/refund-requests'), checkIn: id => api.patch(`/appointments/${id}/check-in`), noShow: id => api.patch(`/appointments/${id}/no-show`),
-  walkIn: d => api.post('/walk-ins', d), queue: doctorId => api.get('/queue', { params: doctorId ? { doctorId } : undefined }), addQueue: appointment_id => api.post('/queue', { appointment_id }), call: id => api.patch(`/queue/${id}/call`),
+  walkIn: d => api.post('/walk-ins', d), doctorAvailability: id => api.get('/doctor-availability', { params: id ? { doctorId: id } : undefined }), queue: doctorId => api.get('/queue', { params: doctorId ? { doctorId } : undefined }), addQueue: appointment_id => api.post('/queue', { appointment_id }), call: id => api.patch(`/queue/${id}/call`),
 };
 export const doctorApi = {
   mine: () => api.get('/doctors/me/appointments'), schedules: id => api.get(`/doctors/${id}/schedules`), addSchedule: (id, d) => api.post(`/doctors/${id}/schedules`, d),

@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -9,6 +10,88 @@ from app.schemas.appointment import WalkInIn, QueueOut
 from app.schemas.admin import ReceptionPatientCreate
 
 router = APIRouter(prefix="/api", tags=["Reception & Queue"])
+
+
+VN_TZ = ZoneInfo("Asia/Ho_Chi_Minh")
+
+
+def _doctor_availability(db, doctor_id: int, now=None):
+    now = now or datetime.now(VN_TZ)
+    doctor = db.get(Doctor, doctor_id)
+    if not doctor:
+        return None
+    if not doctor.user or not doctor.user.is_active:
+        return {
+            "doctor_id": doctor.id,
+            "status": "INACTIVE",
+            "label": "Không hoạt động",
+            "working": False,
+            "queue_count": 0,
+            "current_patient": None,
+        }
+
+    today = now.strftime("%Y-%m-%d")
+    if any(x.date == today for x in doctor.days_off):
+        return {
+            "doctor_id": doctor.id,
+            "status": "DAY_OFF",
+            "label": "Ngày nghỉ",
+            "working": False,
+            "queue_count": 0,
+            "current_patient": None,
+        }
+
+    schedules = [x for x in doctor.schedules if x.weekday == now.weekday()]
+    if not schedules:
+        return {
+            "doctor_id": doctor.id,
+            "status": "NO_SCHEDULE",
+            "label": "Chưa có lịch làm việc",
+            "working": False,
+            "queue_count": 0,
+            "current_patient": None,
+        }
+
+    current_hm = now.strftime("%H:%M")
+    active_shift = any(x.start_time <= current_hm < x.end_time for x in schedules)
+    if not active_shift:
+        return {
+            "doctor_id": doctor.id,
+            "status": "OFF_HOURS",
+            "label": "Ngoài giờ làm việc",
+            "working": False,
+            "queue_count": 0,
+            "current_patient": None,
+        }
+
+    waiting = db.scalars(select(QueueEntry).join(Appointment).where(
+        Appointment.doctor_id == doctor.id,
+        Appointment.appointment_date == today,
+        Appointment.status == AppointmentStatus.WAITING.value,
+    )).all()
+    current = db.scalar(select(Appointment).where(
+        Appointment.doctor_id == doctor.id,
+        Appointment.appointment_date == today,
+        Appointment.status == AppointmentStatus.IN_PROGRESS.value,
+    ).order_by(Appointment.started_at.desc(), Appointment.id.desc()))
+    current_name = current.patient.user.full_name if current and current.patient and current.patient.user else None
+    if current:
+        return {
+            "doctor_id": doctor.id,
+            "status": "BUSY",
+            "label": "Đang khám",
+            "working": True,
+            "queue_count": len(waiting),
+            "current_patient": current_name,
+        }
+    return {
+        "doctor_id": doctor.id,
+        "status": "AVAILABLE",
+        "label": "Đang rảnh",
+        "working": True,
+        "queue_count": len(waiting),
+        "current_patient": None,
+    }
 
 
 def queue_payload(q):
@@ -39,6 +122,16 @@ def next_queue_no(db, doctor_id, d=None):
         )
     ) or 0
     return n + 1
+
+
+@router.get("/doctor-availability")
+def doctor_availability(doctorId: int | None = Query(default=None), db: Session = Depends(get_db), user=Depends(require_roles(Role.RECEPTIONIST, Role.ADMIN))):
+    now = datetime.now(VN_TZ)
+    stmt = select(Doctor)
+    if doctorId:
+        stmt = stmt.where(Doctor.id == doctorId)
+    doctors = db.scalars(stmt.order_by(Doctor.id)).all()
+    return [_doctor_availability(db, d.id, now) for d in doctors]
 
 
 @router.get("/appointments")
@@ -196,8 +289,13 @@ def walk_in(data: WalkInIn, db: Session = Depends(get_db), user=Depends(require_
     d = db.get(Doctor, data.doctor_id)
     if not p or not d:
         raise HTTPException(404, "Không tìm thấy bệnh nhân hoặc bác sĩ")
-    today = datetime.now().strftime("%Y-%m-%d")
-    now = datetime.now().strftime("%H:%M")
+    availability = _doctor_availability(db, d.id)
+    if not availability:
+        raise HTTPException(404, "Không tìm thấy trạng thái bác sĩ")
+    if availability["status"] in {"INACTIVE", "DAY_OFF", "NO_SCHEDULE", "OFF_HOURS"}:
+        raise HTTPException(400, f"Không thể tiếp nhận: bác sĩ hiện ở trạng thái {availability['label'].lower()}")
+    today = datetime.now(VN_TZ).strftime("%Y-%m-%d")
+    now = datetime.now(VN_TZ).strftime("%H:%M")
     a = Appointment(
         patient_id=p.id,
         doctor_id=d.id,
