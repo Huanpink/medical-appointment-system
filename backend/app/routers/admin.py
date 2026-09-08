@@ -269,3 +269,8 @@ def update_service(service_id: int, data: AdminServiceUpdate, db: Session = Depe
         setattr(s, k, v.strip() if isinstance(v, str) else v)
     db.commit(); db.refresh(s)
     return {"message": "Đã cập nhật dịch vụ"}
+
+
+@router.get("/accounts-v2")
+def accounts_v2(q: str = Query(default("")), group: str = Query(default("all")), db: Session = Depends(get_db), user=Depends(admin_user)):
+    return accounts(q=q, group=group, db=db, user=user)
