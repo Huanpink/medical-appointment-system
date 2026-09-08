@@ -3,15 +3,22 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_roles
-from app.models import User, Patient, Doctor, Specialty, DoctorSpecialty, Role
+from app.models import User, Patient, Doctor, Specialty, Service, DoctorSpecialty, Role
 from app.schemas.auth import PatientProfile
 from app.schemas.master import SpecialtyOut, DoctorOut, ProfileOut
+from app.schemas.payment import ServiceOut
 
 router=APIRouter(prefix="/api",tags=["Master Data"])
 
 @router.get("/specialties",response_model=list[SpecialtyOut])
 def specialties(db:Session=Depends(get_db)):
     return db.scalars(select(Specialty).order_by(Specialty.name)).all()
+
+@router.get("/services", response_model=list[ServiceOut])
+def services(specialtyId: int | None = Query(default=None), db: Session = Depends(get_db)):
+    stmt=select(Service).where(Service.active == True).order_by(Service.price, Service.name)
+    if specialtyId: stmt=stmt.where(Service.specialty_id == specialtyId)
+    return db.scalars(stmt).all()
 
 @router.get("/doctors",response_model=list[DoctorOut])
 def doctors(specialtyId:int|None=Query(default=None), db:Session=Depends(get_db)):
@@ -34,8 +41,8 @@ def doctor(doctor_id:int,db:Session=Depends(get_db)):
 # Static path must be declared before /patients/{patient_id}.
 @router.get("/patients/search")
 def search_patients(q:str=Query(min_length=1),db:Session=Depends(get_db),user:User=Depends(require_roles(Role.RECEPTIONIST,Role.ADMIN))):
-    stmt=select(Patient,User).join(User,Patient.user_id==User.id).where((User.full_name.ilike(f"%{q}%"))|(User.phone.ilike(f"%{q}%")))
-    return [{"id":p.id,"full_name":u.full_name,"phone":u.phone,"email":u.email} for p,u in db.execute(stmt).all()]
+    stmt=select(Patient,User).join(User,Patient.user_id==User.id).where((User.full_name.ilike(f"%{q}%"))|(User.phone.ilike(f"%{q}%"))|(User.email.ilike(f"%{q}%")))
+    return [{"id":p.id,"full_name":u.full_name,"phone":u.phone,"email":u.email,"patient_code":f"BN-{p.id:06d}"} for p,u in db.execute(stmt).all()]
 
 @router.get("/patients/{patient_id}",response_model=ProfileOut)
 def patient_profile(patient_id:int,db:Session=Depends(get_db), user:User=Depends(get_current_user)):

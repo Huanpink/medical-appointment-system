@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
@@ -19,6 +19,18 @@ class Specialty(Base):
     name: Mapped[str] = mapped_column(String(120), unique=True)
     description: Mapped[str] = mapped_column(Text, default="")
     doctors: Mapped[list["DoctorSpecialty"]] = relationship(back_populates="specialty")
+    services: Mapped[list["Service"]] = relationship(back_populates="specialty")
+
+class Service(Base):
+    __tablename__ = "services"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    specialty_id: Mapped[int] = mapped_column(ForeignKey("specialties.id", ondelete="RESTRICT"), index=True)
+    code: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(160))
+    description: Mapped[str] = mapped_column(Text, default="")
+    price: Mapped[int] = mapped_column(Integer)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    specialty: Mapped["Specialty"] = relationship(back_populates="services")
 
 class Doctor(Base):
     __tablename__ = "doctors"

@@ -191,3 +191,15 @@ Nếu Docker Desktop báo `Virtualization support not detected`, bỏ qua Docker
 ## Test / chất lượng
 
 `docs/TEST_REPORT.md` ghi lại phạm vi kiểm thử. Trong môi trường build artifact không có Docker/PostgreSQL runtime nên không tuyên bố giả rằng browser E2E/DB integration đã chạy thành công ở đây. Source đã được kiểm tra compile/static structure; khi chạy local hãy thực hiện checklist E2E bên trên.
+
+
+## Production deployment
+
+- Backend: Render, Root Directory `backend`, Python 3.13.x, `pip install -r requirements.txt`, `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
+- Frontend: Vercel, Root Directory `frontend`, Framework Vite, build `npm run build`, output `dist`.
+- Frontend environment: `VITE_API_BASE_URL=https://<your-render-service>/api`.
+- Backend environment: `DATABASE_URL`, `JWT_SECRET`, `JWT_ALGORITHM`, `JWT_EXPIRE_MINUTES`, `CORS_ORIGINS`.
+- Do not commit `.env` or production secrets.
+
+## Thanh toán
+Bệnh nhân xem giá niêm yết mẫu theo chuyên khoa và có thể chọn thanh toán tại cơ sở hoặc QR mô phỏng. QR chỉ phục vụ demo đồ án, không kết nối ngân hàng thật. Lịch đã thanh toán mà bị hủy/NO_SHOW sẽ chuyển `REFUND_PENDING` để nhân viên xử lý.
