@@ -24,9 +24,16 @@ def dashboard(db: Session = Depends(get_db), user=Depends(admin_user)):
 
 
 @router.get("/users")
-def users(q: str = Query(default("")), db: Session = Depends(get_db), user=Depends(admin_user)):
+def users(q: str = Query(default("")), group: str = Query(default("all")), db: Session = Depends(get_db), user=Depends(admin_user)):
     needle = q.strip()
-    stmt = select(User).order_by(User.role, User.full_name)
+    stmt = select(User)
+    if group == "staff":
+        stmt = stmt.where(User.role.in_([Role.DOCTOR, Role.RECEPTIONIST]))
+    elif group == "customers":
+        stmt = stmt.where(User.role == Role.PATIENT)
+    elif group == "admin":
+        stmt = stmt.where(User.role == Role.ADMIN)
+    stmt = stmt.order_by(User.role, User.full_name)
     if needle:
         p = f"%{needle}%"
         stmt = stmt.where(or_(User.full_name.ilike(p), User.email.ilike(p), User.phone.ilike(p), cast(User.id, String).ilike(p)))
@@ -179,7 +186,19 @@ def update_doctor(doctor_id: int, data: AdminDoctorUpdate, db: Session = Depends
     db.flush()
     db.add(DoctorSpecialty(doctor_id=d.id, specialty_id=data.specialty_id))
     db.commit()
-    return {"message": "Đã cập nhật thông tin bác sĩ"}
+    db.refresh(u)
+    db.refresh(d)
+    return {
+        "message": "Đã cập nhật thông tin bác sĩ",
+        "doctor_id": d.id,
+        "user_id": u.id,
+        "full_name": u.full_name,
+        "email": u.email,
+        "phone": u.phone,
+        "license_no": d.license_no,
+        "room": d.room,
+        "specialty_id": data.specialty_id,
+    }
 
 
 @router.get("/services")

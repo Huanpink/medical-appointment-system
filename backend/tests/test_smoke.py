@@ -119,8 +119,12 @@ with TestClient(app) as client:
         doctors = client.get('/api/admin/doctors', headers=admin_h); assert doctors.status_code == 200 and doctors.json()
         specs = client.get('/api/specialties').json()
         doc = doctors.json()[0]
-        dupdoc = client.put(f"/api/admin/doctors/{doc['doctor_id']}", headers=admin_h, json={**doc, 'specialty_id': specs[0]['id'], 'doctor_id': doc['doctor_id'], 'user_id': doc['user_id']})
-        assert dupdoc.status_code == 200
+        dupdoc = client.put(f"/api/admin/doctors/{doc['doctor_id']}", headers=admin_h, json={**doc, 'specialty_id': specs[0]['id'], 'doctor_id': doc['doctor_id'], 'user_id': doc['user_id'], 'email': 'doctor.updated@gmail.com'})
+        assert dupdoc.status_code == 200, dupdoc.text
+        assert dupdoc.json()['email'] == 'doctor.updated@gmail.com'
+        doctors_after = client.get('/api/admin/doctors', headers=admin_h).json()
+        updated_doc = next(x for x in doctors_after if x['doctor_id'] == doc['doctor_id'])
+        assert updated_doc['email'] == 'doctor.updated@gmail.com'
         services = client.get('/api/admin/services', headers=admin_h); assert services.status_code == 200 and services.json()
         svc = services.json()[0]
         us = client.put(f"/api/admin/services/{svc['id']}", headers=admin_h, json={**svc})

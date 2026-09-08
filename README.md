@@ -210,3 +210,9 @@ Bệnh nhân xem giá niêm yết mẫu theo chuyên khoa và có thể chọn t
 - Admin can edit account name, email, phone and active/locked status.
 - Admin can reset passwords for any account; doctor and patient edit dialogs also expose **Đặt lại mật khẩu**.
 - Doctor edit now allows updating the login email while enforcing uniqueness.
+
+
+## v14.1 fix
+- Doctor email/login address can be updated by Admin and the updated value is refreshed from the API immediately.
+- API returns the saved email in the doctor update response.
+- Smoke test covers updating a doctor's Gmail-style address.
