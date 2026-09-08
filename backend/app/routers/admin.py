@@ -62,10 +62,44 @@ def accounts(q: str = Query(default=""), group: str = Query(default="all"), db: 
         stmt = stmt.where(User.role == Role.ADMIN)
     if needle:
         ptn = f"%{needle}%"
-        user_ids = list(db.scalars(select(Patient.user_id).where(Patient.patient_code.ilike(ptn))).all())
-        conditions = [User.full_name.ilike(ptn), User.email.ilike(ptn), User.phone.ilike(ptn), cast(User.id, String).ilike(ptn)]
-        if user_ids:
-            conditions.append(User.id.in_(user_ids))
+        conditions = [
+            User.full_name.ilike(ptn),
+            User.email.ilike(ptn),
+            User.phone.ilike(ptn),
+            cast(User.id, String).ilike(ptn),
+        ]
+
+        # patient_code is a Python @property (BN-000001), not a database column.
+        # Search the underlying patient id safely and support both BN-xxxxxx and numeric ids.
+        patient_code = needle.upper()
+        if patient_code.startswith("BN-"):
+            try:
+                patient_no = int(patient_code[3:])
+            except ValueError:
+                patient_no = None
+            if patient_no is not None:
+                user_ids = list(db.scalars(select(Patient.user_id).where(Patient.id == patient_no)).all())
+                if user_ids:
+                    conditions.append(User.id.in_(user_ids))
+        else:
+            try:
+                patient_no = int(patient_code)
+            except ValueError:
+                patient_no = None
+            if patient_no is not None:
+                user_ids = list(db.scalars(select(Patient.user_id).where(Patient.id == patient_no)).all())
+                if user_ids:
+                    conditions.append(User.id.in_(user_ids))
+
+        # USER-000003 is the display code for the user id.
+        if patient_code.startswith("USER-"):
+            try:
+                user_no = int(patient_code[5:])
+            except ValueError:
+                user_no = None
+            if user_no is not None:
+                conditions.append(User.id == user_no)
+
         stmt = stmt.where(or_(*conditions))
     rows = db.scalars(stmt.order_by(User.role, User.full_name)).all()
     out = []
