@@ -200,3 +200,5 @@ Nếu Docker Desktop báo `Virtualization support not detected`, bỏ qua Docker
 - Frontend environment: `VITE_API_BASE_URL=https://<your-render-service>/api`.
 - Backend environment: `DATABASE_URL`, `JWT_SECRET`, `JWT_ALGORITHM`, `JWT_EXPIRE_MINUTES`, `CORS_ORIGINS`.
 - Do not commit `.env` or production secrets.
+
+<!-- Updated UI/UX notes by vsnmyhuong-cute -->
